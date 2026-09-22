@@ -1,0 +1,509 @@
+<title>Mesh Rider NMS Feedback</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#F2F5F7; --card:#FFFFFF; --sunk:#EAEFF3; --ink:#141D26; --ink-2:#3A4A5C; --muted:#6B7D8F;
+    --line:#D8E0E7; --line-soft:#E8EDF1;
+    --accent:#3B2E8C; --accent-soft:#EDEBF7; --on-accent:#FFFFFF;
+    --open:#B4530A; --open-bg:#FBF0E4;
+    --done:#0B6B5B; --done-bg:#E4F2EF;
+    --part:#6D4C9F; --part-bg:#F0EAF8;
+    --radius:10px;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper:#0E151C; --card:#161F29; --sunk:#111A23; --ink:#E7EDF2; --ink-2:#BAC7D4; --muted:#8195A8;
+    --line:#2A3846; --line-soft:#202C38;
+    --accent:#A99CF0; --accent-soft:#1E2140; --on-accent:#12142B;
+    --open:#E8A54A; --open-bg:#2C2415;
+    --done:#5FC9B2; --done-bg:#14302B;
+    --part:#C4B2F5; --part-bg:#241E3A;
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0E151C; --card:#161F29; --sunk:#111A23; --ink:#E7EDF2; --ink-2:#BAC7D4; --muted:#8195A8;
+    --line:#2A3846; --line-soft:#202C38;
+    --accent:#A99CF0; --accent-soft:#1E2140; --on-accent:#12142B;
+    --open:#E8A54A; --open-bg:#2C2415;
+    --done:#5FC9B2; --done-bg:#14302B;
+    --part:#C4B2F5; --part-bg:#241E3A;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px; margin:0 auto; padding-inline:16px; padding-block:40px 120px}
+  h1,h2,h3{text-wrap:balance; margin:0; line-height:1.2}
+  p{margin:0}
+  a{color:var(--accent)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+  h1{font-size:clamp(30px,5.4vw,44px); font-weight:700; letter-spacing:-.02em; margin-top:10px}
+  .ticks{height:12px; margin:14px 0 0;
+    background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 11px);
+    -webkit-mask-image:linear-gradient(90deg,#000 0 55%,transparent 100%);
+    mask-image:linear-gradient(90deg,#000 0 55%,transparent 100%)}
+  .lede{color:var(--ink-2); font-size:17px; max-width:62ch; margin-top:14px}
+  header.top{margin-bottom:34px}
+
+  section{margin-top:48px}
+  h2{font-size:22px; font-weight:600; letter-spacing:-.01em}
+  .sec-note{color:var(--muted); font-size:14px; margin-top:6px; max-width:66ch}
+
+  /* toolbar */
+  .bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:18px}
+  .chip{font:inherit; font-size:13px; cursor:pointer; background:var(--card); color:var(--ink-2);
+    border:1px solid var(--line); border-radius:999px; padding:5px 13px}
+  .chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600}
+  .count{margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--muted)}
+
+  /* a thread */
+  .thread{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
+  .thread-head{padding:16px 18px; display:flex; flex-direction:column; gap:8px}
+  .thread-meta{display:flex; gap:9px; align-items:center; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+  .thread-meta strong{color:var(--ink); font-size:15px; font-weight:600}
+  .thread-body{color:var(--ink-2); white-space:pre-wrap}
+  .thread-body .sub{margin:8px 0 0; padding:0 0 0 14px; border-left:2px solid var(--line-soft);
+    display:flex; flex-direction:column; gap:6px; font-size:15px; list-style:none}
+  .ours{font-size:14px; color:var(--muted); background:var(--sunk); border-radius:7px; padding:9px 12px; margin-top:4px}
+  .ours b{color:var(--ink-2); font-weight:600}
+
+  .tag{display:inline-block; font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:5px; white-space:nowrap}
+  .t-open{background:var(--open-bg); color:var(--open)}
+  .t-done{background:var(--done-bg); color:var(--done)}
+  .t-part{background:var(--part-bg); color:var(--part)}
+  select.status{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 6px; border-radius:5px; border:1px solid var(--line); background:var(--sunk); color:var(--ink-2); width:auto}
+
+  .actions{display:flex; gap:14px; align-items:center; padding:10px 18px; border-top:1px solid var(--line-soft); background:var(--sunk)}
+  .link{font:inherit; font-size:13px; font-weight:500; background:none; border:0; padding:0; cursor:pointer; color:var(--accent)}
+  .link.quiet{color:var(--muted)}
+
+  .comments{padding:4px 18px 16px; display:none; flex-direction:column; gap:12px; border-top:1px solid var(--line-soft)}
+  .comments.open{display:flex}
+  .cmt{display:flex; flex-direction:column; gap:4px; padding-top:12px}
+  .cmt.reply{margin-left:22px; padding-left:14px; border-left:2px solid var(--line-soft)}
+  .cmt-meta{display:flex; gap:9px; align-items:baseline; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+  .cmt-meta strong{font-size:14px; color:var(--ink); font-weight:600}
+  .cmt-text{color:var(--ink-2); white-space:pre-wrap}
+  .cmt-acts{display:flex; gap:12px; margin-top:2px}
+
+  textarea,input,select{font:inherit; font-size:15px; color:var(--ink); background:var(--paper);
+    border:1px solid var(--line); border-radius:7px; padding:9px 11px; width:100%}
+  textarea{min-height:76px; resize:vertical}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .composer{display:flex; flex-direction:column; gap:8px; padding-top:12px}
+  .composer-row{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+  button.go{font:inherit; font-weight:600; font-size:14px; cursor:pointer; background:var(--accent);
+    color:var(--on-accent); border:0; border-radius:7px; padding:8px 16px}
+  button.go[disabled]{opacity:.5; cursor:default}
+  button.ghost{font:inherit; font-size:14px; cursor:pointer; background:var(--card); color:var(--ink-2);
+    border:1px solid var(--line); border-radius:7px; padding:8px 16px}
+  .who-input{max-width:220px}
+
+  .empty,.status-line{color:var(--muted); font-size:15px; margin-top:14px}
+
+  /* the feedback button */
+  .fab{position:fixed; right:max(16px,env(safe-area-inset-right,0px)); bottom:calc(18px + env(safe-area-inset-bottom,0px));
+    z-index:20; font:inherit; font-weight:600; font-size:15px; cursor:pointer; background:var(--accent); color:var(--on-accent);
+    border:0; border-radius:999px; padding:13px 22px; box-shadow:0 6px 22px rgba(20,29,38,.22)}
+  dialog{border:0; padding:0; background:transparent; max-width:560px; width:calc(100% - 32px)}
+  dialog::backdrop{background:rgba(10,16,22,.5)}
+  .sheet{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px}
+  .sheet h3{font-size:19px; font-weight:600; margin-bottom:4px}
+  .sheet .field{display:flex; flex-direction:column; gap:6px; margin-top:14px}
+  label{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  .sheet .foot{display:flex; gap:10px; justify-content:flex-end; margin-top:18px; flex-wrap:wrap}
+
+  /* scenario */
+  details.phase{border:1px solid var(--line); border-radius:var(--radius); background:var(--card); margin-top:12px}
+  details.phase>summary{cursor:pointer; padding:14px 18px; font-weight:600; list-style:none; display:flex; gap:12px; align-items:baseline}
+  details.phase>summary::-webkit-details-marker{display:none}
+  details.phase>summary::before{content:"\25B8"; color:var(--muted); font-size:13px}
+  details.phase[open]>summary::before{content:"\25BE"}
+  .phase-no{font-family:var(--mono); font-size:12px; color:var(--muted)}
+  .phase-body{padding:0 18px 18px; color:var(--ink-2)}
+  .phase-body ol{padding-left:20px; margin:10px 0 0; display:flex; flex-direction:column; gap:9px}
+  .phase-body ul{padding-left:20px; margin:7px 0 0; display:flex; flex-direction:column; gap:5px}
+  .tblwrap{overflow-x:auto; margin-top:12px}
+  table{border-collapse:collapse; width:100%; font-size:14px}
+  th,td{text-align:left; padding:7px 12px 7px 0; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  th{font-family:var(--mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); font-weight:500}
+  .mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+  .callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:14px 16px;
+    border-radius:0 8px 8px 0; margin-top:16px; font-size:15px; color:var(--ink-2)}
+  footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Doodle Labs &middot; Mesh Rider NMS</div>
+    <h1>Feedback</h1>
+    <div class="ticks"></div>
+    <p class="lede">Everything the team has said about the alpha, what we did about it, and somewhere to carry the conversation on.
+      Comment on anything. Reply to anyone. Change a status when it changes.</p>
+  </header>
+
+
+  <section>
+    <h2>What the team said</h2>
+    <p class="sec-note">Given directly to us rather than through the button, so it is written here rather than in the sheet. Status is ours and says where the work actually stands, not where we would like it to be.</p>
+    <article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-done">Installation</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">Windows machines come with script execution off</div><div class="thread-body">Doodle Labs Windows machines come natively with script execution off. A critique of the installation phase.</div><div class="ours"><b>Where it stands.</b> The installer and the running product no longer depend on script execution. Everything runs from an installed executable.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-part">Fleet management</span><span class="tag t-part">Partly done</span></div><div style="font-weight:600">Auto-discovery: always on, or a pending list?</div><div class="thread-body">Should the alpha be auto-discovering new radios, or is this a manual process?</div><ul class="sub"><li>We should have a setting that allows for auto discovery always or the pending list. Where I think this software is positioned in a production area, it would be nice to only configure the intended sets of radios when all radios are set to defaults out of the box.</li></ul><div class="ours"><b>Where it stands.</b> The always-on / pending-list switch shipped on 16 September. Scoping it to the intended set does not exist - switching it on today admits every factory radio in range, including the bench next door.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-done">Configuration</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">A password per profile, for mixed fleets</div><div class="thread-body">Is there a setting for if the customer changes root passwords, that they can configure one per profile or something like that? That way when they have a factory radio that&#x27;s got no password and a non-factory that requires their custom password, the user is able to log in to both.</div><div class="ours"><b>Where it stands.</b> Credential profiles, under Access. A password resolves per radio, then per profile, then fleet-wide, so a mixed fleet needs no special handling. Deliberately separate from the RF configuration profile.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-done">Configuration</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">Why does adding a radio need a hostname?</div><div class="thread-body">When adding radios to the list, why do we require hostname to add them? The IP address should be enough, and the hostname used as an optional argument. I don&#x27;t think the hostname would be applicable though unless we had an active DNS server up on the L2.</div><div class="ours"><b>Where it stands.</b> Right on both counts, and the label was simply wrong. The form now asks only for the address, and an Identify button reads the node ID off the radio. It doubles as a reachability check.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-open">Documentation</span><span class="tag t-open">Open</span></div><div style="font-weight:600">The quickstart guide needs colours and pictures</div><div class="thread-body">In the quickstart guide we should provide colours and pictures within it for handover to customer.</div><div class="ours"><b>Where it stands.</b> Not started, and worse than plain: the current guide describes a proxy component the native Windows product does not have, so it is wrong as well as unillustrated.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-open">Accounts</span><span class="tag t-open">Open</span></div><div style="font-weight:600">Password recovery when the admin forgets</div><div class="thread-body">Is there any recovery option for when users inevitably forget the password?</div><ul class="sub"><li>&quot;Ask any admin to reset it via Settings, User Management&quot; is not an acceptable answer, as the admin will inevitably be the one who forgets.</li><li>Assume they have physical access to the container - we should have some password change method, or a way to wipe it and track it in the blame log if that&#x27;s the way you want to roll.</li></ul><div class="ours"><b>Where it stands.</b> Accepted as a real gap. There is no recovery path for the last administrator today.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Mathew</strong><span class="tag t-done">Kudos</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">DoodleGIT does a great job on data collection</div><div class="thread-body">The DoodleGIT does a great job on data collection, other than just logs. It&#x27;s being added to the report, but I just wanted to throw a kudos to you guys.</div><div class="ours"><b>Where it stands.</b> Kept here so the good sits on the same page as the bad.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Cory</strong><span class="tag t-open">Positioning</span><span class="tag t-open">Open</span></div><div style="font-weight:600">NMS is a headquarters application, and that is its runway</div><div class="thread-body">The best way to describe NMS is as a &quot;headquarters&quot; application. It lives on a dedicated computer that&#x27;s always on, and it manages a fleet of radios from there. That&#x27;s a valuable thing. This is the same model used in some ultrawideband systems: the units in the field are simple and inexpensive, and the intelligence sits back at the central server.
+
+As part of a larger ground control station product, this architecture has a lot of runway. You could add monitoring, automation, and eventually AI-driven Sense and EW capabilities on top of it. Steven Griggs has mentioned interest in a GCS product, and this would be a natural foundation for it. Perhaps we throw in an optional tracking system module, too.</div><div class="ours"><b>Where it stands.</b> A product direction rather than a defect. Left open deliberately - a decision for the team, not something engineering can close.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Cory</strong><span class="tag t-done">Installation</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">It requires Docker</div><div class="thread-body">It requires Docker, a piece of software that has to be installed and running underneath it. On many company-managed laptops, users don&#x27;t have the permissions to install it, and most customers won&#x27;t be familiar with it.</div><div class="ours"><b>Where it stands.</b> Docker is gone from the Windows product. It runs natively, and there is a single installer that asks for nothing.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Cory</strong><span class="tag t-done">Installation</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">A server application has more places to get stuck</div><div class="thread-body">It&#x27;s a server application, so it has more moving parts than a standalone tool. My install went smoothly, but that&#x27;s because the machine I work on is already set up as a server with self-hosted applications. A field user without that setup has more places to get stuck and fewer ways to recover offline.</div><div class="ours"><b>Where it stands.</b> Nothing needs setting up beforehand. It installs, starts itself at sign-in, and reports its own failures in plain words rather than leaving someone stuck.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Cory</strong><span class="tag t-part">Positioning</span><span class="tag t-part">Partly done</span></div><div style="font-weight:600">&quot;Dead simple, no gotchas&quot; is not what this is</div><div class="thread-body">The expectation on the team has been &quot;dead simple, no gotchas&quot;. This is a capable, professional tool, but it&#x27;s not a simple one, and it&#x27;s not aimed at that user.</div><div class="ours"><b>Where it stands.</b> Installation is now simple. Whether the product itself is aimed at that user is a product question rather than an engineering one, and it is on the list for the team to settle.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Kenny</strong><span class="tag t-open">Fleet management</span><span class="tag t-open">Open</span></div><div style="font-weight:600">What customers would actually use it for</div><div class="thread-body">I think the software would be most useful to help normal customers manage a whole fleet of our radios, since that is a big complaint right now. The useful things I see our customers using it for are:</div><ul class="sub"><li>Configuring the settings for the radio for the first time</li><li>Modifying the configuration to test how different settings affect their performance</li></ul><div class="ours"><b>Where it stands.</b> Both are what the drone-integrator scenario exercises, and it found real gaps in the first one. Left open as the yardstick.</div></div></article><article class="thread"><div class="thread-head"><div class="thread-meta"><strong>Kenny</strong><span class="tag t-done">Installation</span><span class="tag t-done">Shipped</span></div><div style="font-weight:600">The barrier to install is too high</div><div class="thread-body">The software should not have a high barrier to be installed. Most of the users that would benefit from this tool are not command line savvy. An app like the Mesh Rider app would be a better delivery method to the user - or maybe something with an installer.</div><div class="ours"><b>Where it stands.</b> One file, double-click, a short wizard, no command line at any point. The remaining barrier is that the files are unsigned, so security software can interfere - that needs a certificate, not code.</div></div></article>
+  </section>
+  <section>
+    <h2>Feedback inbox</h2>
+    <p class="sec-note">Everything submitted through the Feedback button, in the product and on this page, live from the sheet. Reply to any of it, or change a status - both go straight back into the sheet.</p>
+    <div class="bar" id="filters">
+      <button class="chip" data-f="all" aria-pressed="true" type="button">Everything</button>
+      <button class="chip" data-f="Open" aria-pressed="false" type="button">Open</button>
+      <button class="chip" data-f="Partly done" aria-pressed="false" type="button">Partly done</button>
+      <button class="chip" data-f="Shipped" aria-pressed="false" type="button">Shipped</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div id="threads"><p class="status-line" id="boot">Loading&hellip;</p></div>
+  </section>
+
+  <section>
+    <h2>The scenario we test against</h2>
+    <p class="sec-note">Ten radios, two networks, eight reachable only over the air. Written as a customer journey with the failure built into it on purpose.</p>
+    <div class="callout"><strong>The rules.</strong> Ten real Doodle Labs radios, not a LIMA eval kit. The only radio anyone may plug an Ethernet cable into is the GCS radio. <strong>No command line at any point &mdash; web interface only.</strong></div>
+
+    <details class="phase">
+      <summary><span class="phase-no">Phase 1</span> Build it</summary>
+      <div class="phase-body">
+        <p>Eight radios are already in drones and hard to reach by cable. Two are for ground control stations. Two networks, each one GCS and four drones.</p>
+        <ol>
+          <li>Designate 2 GCS radios and 8 drone radios. Firmware update all ten. <strong>Never connect to a drone radio over Ethernet &mdash; only through the GCS radio.</strong></li>
+          <li>Two networks:
+            <div class="tblwrap"><table>
+              <tr><th>Network</th><th>Mesh ID</th><th>Password</th></tr>
+              <tr><td>1</td><td class="mono">Doodle1</td><td class="mono">doodle1PASSWORD</td></tr>
+              <tr><td>2</td><td class="mono">Doodle2</td><td class="mono">doodle2PASSWORD</td></tr>
+            </table></div></li>
+          <li>Simple Config:
+            <div class="tblwrap"><table>
+              <tr><th>Network</th><th>Channel</th><th>Bandwidth</th><th>Devices</th></tr>
+              <tr><td>1</td><td class="mono">2085 MHz</td><td class="mono">10 MHz</td><td class="mono">1 to 2</td></tr>
+              <tr><td>2</td><td class="mono">1791 MHz</td><td class="mono">10 MHz</td><td class="mono">1 to 2</td></tr>
+            </table></div></li>
+          <li>An additional static IP on each drone radio:
+            <div class="tblwrap"><table>
+              <tr><th>Radio</th><th>Address</th><th>Radio</th><th>Address</th></tr>
+              <tr><td>N1 drone 1</td><td class="mono">192.152.1.2/16</td><td>N2 drone 1</td><td class="mono">192.152.2.2/16</td></tr>
+              <tr><td>N1 drone 2</td><td class="mono">192.152.1.3/16</td><td>N2 drone 2</td><td class="mono">192.152.2.3/16</td></tr>
+              <tr><td>N1 drone 3</td><td class="mono">192.152.1.4/16</td><td>N2 drone 3</td><td class="mono">192.152.2.4/16</td></tr>
+              <tr><td>N1 drone 4</td><td class="mono">192.152.1.5/16</td><td>N2 drone 4</td><td class="mono">192.152.2.5/16</td></tr>
+            </table></div></li>
+          <li>Serial / UART for the flight controller: <span class="mono">38400</span> baud on <span class="mono">/dev/uart0</span>.</li>
+          <li>Install Sense licences.</li>
+          <li>Configure Sense. A slave node also needs its thresholds set.
+            <div class="tblwrap"><table>
+              <tr><th>Network 1 ACS list</th><th>Network 2 ACS list</th></tr>
+              <tr><td class="mono">1715/20</td><td class="mono">1800/20</td></tr>
+              <tr><td class="mono">2500/10</td><td class="mono">2390/10</td></tr>
+              <tr><td class="mono">1675/10</td><td class="mono">2335/20</td></tr>
+              <tr><td class="mono">2210/20</td><td class="mono">2050/20</td></tr>
+            </table></div>
+            <p style="margin-top:10px">Thresholds, both networks: packet loss <span class="mono">76%</span>, busy time <span class="mono">78%</span>, inactive time <span class="mono">4000 ms</span>.</p></li>
+          <li>Enable Sense. One drone radio and one GCS is enough.</li>
+          <li>Add two more channels to both lists: <span class="mono">1668/10</span> and <span class="mono">2089/10</span>.</li>
+          <li>Disable Sense.</li>
+          <li>Re-enable Sense, packet loss ratio <span class="mono">85%</span>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary><span class="phase-no">Phase 2</span> The wrong setting, and the first real test</summary>
+      <div class="phase-body">
+        <p>Four drones and one GCS will not run. Doodle Labs says the wrong value was used in the Setup Wizard.</p>
+        <ul>
+          <li><strong>a.</strong> Change number of devices from &ldquo;1 to 2&rdquo; to &ldquo;3 to 5&rdquo;.</li>
+          <li><strong>b.</strong> Then check everything from Phase 1 is still there. Sense? UART? IP addresses?</li>
+        </ul>
+        <div class="callout"><strong>This is the point of the scenario.</strong> Changing one value must not silently discard the other twenty.</div>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary><span class="phase-no">Phase 3</span> The customer is angry</summary>
+      <div class="phase-body">
+        <p>&ldquo;All my settings are gone and the mesh isn't working.&rdquo; A field engineer attends. Large-node mesh performing badly.</p>
+        <ul>
+          <li><strong>a.</strong> Rebroadcast for self and others: <span class="mono">2</span></li>
+          <li><strong>b.</strong> OGM interval: <span class="mono">2500 ms</span></li>
+          <li><strong>c.</strong> Turn off TPC and ATPC</li>
+          <li><strong>d.</strong> Transmit power: <span class="mono">23 dBm</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary><span class="phase-no">Phase 4</span> WDS</summary>
+      <div class="phase-body">
+        <p>The customer has heard WDS mode will fix a roaming problem.</p>
+        <ul><li><strong>a.</strong> Switch to WDS / AP mode.</li>
+        <li><strong>b.</strong> Confirm every previously set setting is still correct.</li></ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary><span class="phase-no">Phase 5</span> Different firmware</summary>
+      <div class="phase-body">
+        <p>Do not use WDS &mdash; try this other firmware instead.</p>
+        <ul><li><strong>a.</strong> Install a different firmware.</li>
+        <li><strong>b.</strong> Set the whole of Phase 1 up again.</li></ul>
+      </div>
+    </details>
+
+    <div class="callout" style="margin-top:22px">
+      <strong>What we found checking the product against it.</strong>
+      Simple Config &mdash; the screen the whole scenario runs on &mdash; is hidden in a customer build, so Phase 1 cannot be performed at all.
+      The settings are not destroyed by us: our destructive path was removed some time ago, and the radio's own reload deletes its wireless configuration every time.
+      Sense, UART, the extra address, TPC, ATPC and the rebroadcast counts all survive. <strong>Transmit power is destroyed every time</strong> and returns at the regulatory maximum.
+      The 2500&nbsp;ms OGM interval cannot be set by any tool &mdash; the radio recomputes it from the device count. That one is a firmware request.
+    </div>
+  </section>
+
+  <footer>Kept by the Mesh Rider NMS team. Anything you add here is visible to everyone with the link.</footer>
+</div>
+
+<button class="fab" id="fab" type="button">Add feedback</button>
+
+<dialog id="dlg">
+  <form method="dialog" class="sheet">
+    <h3>Add feedback</h3>
+    <p class="sec-note" style="margin-top:2px">Say what you found, what you expected, and on what hardware.</p>
+    <div class="field"><label for="n-who">Your name</label><input id="n-who" type="text" autocomplete="name"></div>
+    <div class="field"><label for="n-area">Area</label>
+      <select id="n-area">
+        <option>Installation</option><option>Configuration</option><option>Fleet management</option>
+        <option>Sense</option><option>Firmware</option><option>Documentation</option>
+        <option>Positioning</option><option>Something else</option>
+      </select></div>
+    <div class="field"><label for="n-title">One-line summary</label><input id="n-title" type="text"></div>
+    <div class="field"><label for="n-body">Detail</label><textarea id="n-body"></textarea></div>
+    <div class="status-line" id="n-status" role="status" aria-live="polite"></div>
+    <div class="foot">
+      <button class="ghost" value="cancel" type="submit">Cancel</button>
+      <button class="go" id="n-send" value="send" type="button">Send feedback</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  // On Vercel the relay lives at /api/feedback and the sheet address stays
+  // server-side. On GitHub Pages there is no server, so config.js carries it.
+  var API = (window.NMS_FEEDBACK_ENDPOINT || '').trim() || '/api/feedback';
+  var DIRECT = !!(window.NMS_FEEDBACK_ENDPOINT || '').trim();
+  var items = [], filter = 'all', openThreads = {}, loaded = false;
+  var threadsEl = document.getElementById('threads');
+  var countEl = document.getElementById('count');
+  var dlg = document.getElementById('dlg');
+
+  var STATUSES = ['New', 'In Progress', 'Discuss', 'Need info', 'Done'];
+  var CLS = { 'New': 't-open', 'In Progress': 't-part', 'Discuss': 't-part',
+              'Need info': 't-open', 'Done': 't-done' };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function when(ts) {
+    if (!ts) return '';
+    var d = new Date(ts); if (isNaN(d)) return '';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function myName() { try { return localStorage.getItem('nms.fb.name') || ''; } catch (e) { return ''; } }
+  function setMyName(v) { try { if (v) localStorage.setItem('nms.fb.name', v); } catch (e) {} }
+
+  function replyHtml(r) {
+    return '<div class="cmt reply">' +
+      '<div class="cmt-meta"><strong>' + esc(r.by || 'Someone') + '</strong><span>' + esc(when(r.at)) + '</span></div>' +
+      '<div class="cmt-text">' + esc(r.text) + '</div></div>';
+  }
+
+  function threadHtml(it) {
+    var reps = Array.isArray(it.replies) ? it.replies : [];
+    var open = !!openThreads[it.id];
+    var status = it.status || 'New';
+    var area = it.screen || it.type || 'Feedback';
+
+    var statusSel = '<select class="status" data-act="status" data-i="' + esc(it.id) + '" aria-label="Status">' +
+      STATUSES.map(function (s) {
+        return '<option value="' + esc(s) + '"' + (s === status ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('') +
+      (STATUSES.indexOf(status) === -1 ? '<option selected>' + esc(status) + '</option>' : '') +
+      '</select>';
+
+    return '<article class="thread" data-i="' + esc(it.id) + '">' +
+      '<div class="thread-head">' +
+        '<div class="thread-meta"><strong>' + esc(it.name || 'Anonymous') + '</strong>' +
+        '<span class="tag ' + (CLS[status] || 't-open') + '">' + esc(area) + '</span>' +
+        statusSel + '<span>' + esc(when(it.createdAt)) + '</span></div>' +
+        '<div class="thread-body">' + esc(it.comment || '') + '</div>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="link" data-act="toggle" data-i="' + esc(it.id) + '">' +
+          (open ? 'Hide' : (reps.length ? 'Replies' : 'Reply')) +
+          (reps.length ? ' (' + reps.length + ')' : '') + '</button>' +
+      '</div>' +
+      '<div class="comments' + (open ? ' open' : '') + '">' +
+        reps.map(replyHtml).join('') +
+        '<div class="composer">' +
+          '<div class="composer-row"><input class="who-input" type="text" placeholder="Your name" value="' +
+            esc(myName()) + '" data-act="who"></div>' +
+          '<textarea placeholder="Add a reply" data-act="text" aria-label="Reply"></textarea>' +
+          '<div class="composer-row"><button class="go" data-act="send" data-i="' + esc(it.id) + '">Reply</button>' +
+          '<span class="status-line" style="margin:0" data-act="msg"></span></div>' +
+        '</div>' +
+      '</div></article>';
+  }
+
+  function render() {
+    if (!loaded) return;
+    var vis = items.filter(function (it) {
+      return filter === 'all' || (it.status || 'New') === filter;
+    });
+    countEl.textContent = vis.length + ' of ' + items.length;
+    threadsEl.innerHTML = vis.length
+      ? vis.map(threadHtml).join('')
+      : '<p class="empty">Nothing with that status.</p>';
+  }
+
+  async function load() {
+    try {
+      var r = await fetch(API, { headers: { 'Accept': 'application/json' } });
+      var d = await r.json();
+      if (!r.ok || !d || !Array.isArray(d.feedback)) {
+        throw new Error((d && d.error) || 'no answer');
+      }
+      items = d.feedback;
+      loaded = true;
+      var boot = document.getElementById('boot');
+      if (boot) boot.remove();
+      render();
+    } catch (e) {
+      var b = document.getElementById('boot');
+      if (b) b.textContent = 'Could not reach the feedback store. ' +
+        'If this has just been deployed, the feedback address has not been set yet - see config.js.';
+    }
+  }
+
+  document.getElementById('filters').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (!b) return;
+    filter = b.dataset.f;
+    [].forEach.call(this.querySelectorAll('.chip'), function (c) {
+      c.setAttribute('aria-pressed', String(c === b));
+    });
+    render();
+  });
+
+  threadsEl.addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+
+    if (b.dataset.act === 'toggle') {
+      openThreads[b.dataset.i] = !openThreads[b.dataset.i];
+      render();
+      return;
+    }
+
+    if (b.dataset.act === 'send') {
+      var box = b.closest('.comments');
+      var who = box.querySelector('[data-act="who"]').value.trim();
+      var ta = box.querySelector('[data-act="text"]');
+      var msg = b.parentElement.querySelector('[data-act="msg"]');
+      var text = ta.value.trim();
+      if (!text) { msg.textContent = 'Write something first.'; ta.focus(); return; }
+      setMyName(who);
+      b.disabled = true; msg.textContent = 'Sending…';
+      try {
+        var r = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
+          body: JSON.stringify({ action: 'reply', id: b.dataset.i, text: text, by: who || 'anonymous' })
+        });
+        var d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d && d.error);
+        ta.value = '';
+        openThreads[b.dataset.i] = true;
+        msg.textContent = '';
+        await load();
+      } catch (err) {
+        msg.textContent = 'That did not send. Try again.';
+        b.disabled = false;
+      }
+      return;
+    }
+  });
+
+  threadsEl.addEventListener('change', async function (e) {
+    var s = e.target.closest('select[data-act="status"]'); if (!s) return;
+    var prev = s.dataset.prev || '';
+    s.disabled = true;
+    try {
+      var r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
+        body: JSON.stringify({ action: 'reply', id: s.dataset.i, status: s.value, by: myName() || 'anonymous' })
+      });
+      var d = await r.json();
+      if (!r.ok || !d.ok) throw new Error();
+      var it = items.filter(function (x) { return String(x.id) === s.dataset.i; })[0];
+      if (it) it.status = s.value;
+    } catch (err) {
+      if (prev) s.value = prev;
+    }
+    s.disabled = false;
+  });
+
+  /* new feedback */
+  document.getElementById('fab').addEventListener('click', function () {
+    document.getElementById('n-who').value = myName();
+    document.getElementById('n-status').textContent = '';
+    if (dlg.showModal) dlg.showModal();
+  });
+
+  document.getElementById('n-send').addEventListener('click', async function () {
+    var who = document.getElementById('n-who').value.trim();
+    var title = document.getElementById('n-title').value.trim();
+    var body = document.getElementById('n-body').value.trim();
+    var st = document.getElementById('n-status');
+    var comment = title && body ? (title + '\n\n' + body) : (title || body);
+    if (!comment) { st.textContent = 'Write a summary or some detail.'; return; }
+    setMyName(who);
+    this.disabled = true; st.textContent = 'Sending…';
+    try {
+      var r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
+        body: JSON.stringify({
+          comment: comment,
+          name: who || 'Anonymous',
+          screen: document.getElementById('n-area').value,
+          type: 'Feedback',
+          role: 'team'
+        })
+      });
+      var d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d && d.error);
+      document.getElementById('n-title').value = '';
+      document.getElementById('n-body').value = '';
+      st.textContent = '';
+      dlg.close();
+      await load();
+    } catch (err) {
+      st.textContent = 'That did not send. Try again, and tell the team if it keeps failing.';
+    }
+    this.disabled = false;
+  });
+
+  load();
+})();
+</script>
