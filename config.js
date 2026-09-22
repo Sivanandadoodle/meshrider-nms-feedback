@@ -11,4 +11,4 @@
 // Pages, which can only serve files. If it ever attracts nuisance, deploy the
 // Apps Script again to get a fresh address and change this line.
 
-window.NMS_FEEDBACK_ENDPOINT = "";
+window.NMS_FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbz1_cvF5_7bvA0DAQYUCVlMw2atzSoOM9iD7FQuN1RtpE-ku33ocFc_V6xNpbKCV5h9/exec";
