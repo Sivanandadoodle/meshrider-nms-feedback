@@ -402,6 +402,9 @@
   function render() {
     if (!loaded) return;
     var vis = items.filter(function (it) {
+      // Rows marked Duplicate are waiting to be deleted from the sheet; nobody
+      // needs to see them here in the meantime.
+      if ((it.status || '') === 'Duplicate') return false;
       return filter === 'all' || (it.status || 'New') === filter;
     });
     countEl.textContent = vis.length + ' of ' + items.length;
