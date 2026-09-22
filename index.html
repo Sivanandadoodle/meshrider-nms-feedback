@@ -37,6 +37,13 @@
   a{color:var(--accent)}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+  .brand{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:4px}
+  .brand img{height:34px; width:auto; display:block}
+  .brand-rule{width:1px; height:20px; background:var(--line); flex:0 0 auto}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand img{
+    background:#fff; padding:6px 10px; border-radius:7px; height:46px}}
+  :root[data-theme="dark"] .brand img{background:#fff; padding:6px 10px; border-radius:7px; height:46px}
+  @media (max-width:420px){.brand-rule{display:none}}
   .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
   h1{font-size:clamp(30px,5.4vw,44px); font-weight:700; letter-spacing:-.02em; margin-top:10px}
   .ticks{height:12px; margin:14px 0 0;
@@ -138,7 +145,11 @@
 
 <div class="wrap">
   <header class="top">
-    <div class="eyebrow">Doodle Labs &middot; Mesh Rider NMS</div>
+    <div class="brand">
+      <img src="doodle-labs.png" alt="Doodle Labs" width="357" height="120">
+      <span class="brand-rule" aria-hidden="true"></span>
+      <span class="eyebrow">Mesh Rider NMS</span>
+    </div>
     <h1>Feedback</h1>
     <div class="ticks"></div>
     <p class="lede">Everything the team has said about the alpha, what we did about it, and somewhere to carry the conversation on.
