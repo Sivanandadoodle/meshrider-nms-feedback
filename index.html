@@ -154,6 +154,14 @@
   .callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:14px 16px;
     border-radius:0 8px 8px 0; margin-top:16px; font-size:15px; color:var(--ink-2)}
   footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+
+  .byline{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; margin-top:22px;
+    padding:14px 18px; background:var(--card); border:1px solid var(--line);
+    border-left:3px solid var(--accent); border-radius:0 8px 8px 0}
+  .byline-who{flex:0 0 auto}
+  .byline-name{font-weight:600; color:var(--ink); font-size:16px}
+  .byline-role{font-family:var(--mono); font-size:12px; letter-spacing:.05em; color:var(--muted); margin-top:2px}
+  .byline-note{flex:1 1 320px; min-width:0; font-size:14px; color:var(--ink-2)}
 </style>
 
 <div class="wrap">
@@ -167,6 +175,15 @@
     <div class="ticks"></div>
     <p class="lede">Everything the team has said about the alpha, what we did about it, and somewhere to carry the conversation on.
       Comment on anything. Reply to anyone. Change a status when it changes.</p>
+
+    <div class="byline">
+      <div class="byline-who">
+        <div class="byline-name">Sivananda Reddy Bogireddy</div>
+        <div class="byline-role">Senior Software Engineer &middot; Doodle Labs</div>
+      </div>
+      <p class="byline-note">Maintains this page and the Mesh Rider NMS work behind it.
+        Anything you add here is visible to everyone with the link, and lands in the team&rsquo;s feedback sheet.</p>
+    </div>
   </header>
 
 
@@ -292,11 +309,7 @@ As part of a larger ground control station product, this architecture has a lot 
     </div>
   </section>
 
-  <footer>
-    <div style="font-weight:600;color:var(--ink);font-size:15px">Sivananda Reddy Bogireddy</div>
-    <div>Senior Software Engineer &middot; Doodle Labs</div>
-    <div style="margin-top:8px">Maintains this page and the Mesh Rider NMS work behind it. Anything you add here is visible to everyone with the link, and lands in the team&rsquo;s feedback sheet.</div>
-  </footer>
+  <footer>Doodle Labs &middot; Mesh Rider NMS</footer>
 </div>
 
 <button class="fab" id="fab" type="button">Add feedback</button>
