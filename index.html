@@ -138,6 +138,7 @@
     border:1px solid var(--line); border-radius:999px; padding:3px 6px 3px 10px; max-width:180px}
   .chip-file{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .hint{font-size:12px; color:var(--muted); margin-top:6px}
+  .older-line{margin-top:20px; font-size:14px; color:var(--muted)}
   .saved{font-size:12px; color:var(--done)}
   .saved.bad{color:var(--blocked, #9B2226)}
 
@@ -488,18 +489,43 @@
       '</div></article>';
   }
 
+  // Everything up to and including 13 August 2026 came from the demo's own
+  // feedback button and is answered. It is hidden rather than deleted - the
+  // sheet still holds all of it, and the link below brings it back.
+  var OLDER_THAN = Date.parse('2026-08-14T00:00:00');
+  var showOlder = false;
+
+  function isOlder(it) {
+    var t = Date.parse(it.createdAt);
+    return !isNaN(t) && t < OLDER_THAN;
+  }
+
   function render() {
     if (!loaded) return;
-    var vis = items.filter(function (it) {
+    var live = items.filter(function (it) {
       // Rows marked Duplicate are waiting to be deleted from the sheet; nobody
       // needs to see them here in the meantime.
-      if ((it.status || '') === 'Duplicate') return false;
+      return (it.status || '') !== 'Duplicate';
+    });
+    var olderCount = live.filter(isOlder).length;
+
+    var vis = live.filter(function (it) {
+      if (!showOlder && isOlder(it)) return false;
       return filter === 'all' || (it.status || 'New') === filter;
     });
-    countEl.textContent = vis.length + ' of ' + items.length;
-    threadsEl.innerHTML = vis.length
+
+    countEl.textContent = vis.length + ' of ' + (showOlder ? live.length : live.length - olderCount);
+    threadsEl.innerHTML = (vis.length
       ? vis.map(threadHtml).join('')
-      : '<p class="empty">Nothing with that status.</p>';
+      : '<p class="empty">Nothing with that status.</p>')
+      + (olderCount
+        ? '<p class="older-line">' + olderCount + ' earlier item' + (olderCount === 1 ? '' : 's') +
+          ' from the demo, up to 13 August. ' +
+          '<button class="link" id="toggle-older">' + (showOlder ? 'Hide them' : 'Show them') + '</button></p>'
+        : '');
+
+    var t = document.getElementById('toggle-older');
+    if (t) t.addEventListener('click', function () { showOlder = !showOlder; render(); });
   }
 
   async function load() {
