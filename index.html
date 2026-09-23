@@ -520,21 +520,100 @@
       : '<p class="empty">Nothing with that status.</p>';
   }
 
+  /*
+   * Talking to the sheet.
+   *
+   * Apps Script does not answer a request directly: it redirects to a
+   * one-time URL on script.googleusercontent.com and the answer comes from
+   * there. That second hop intermittently returns a Drive "page not found"
+   * HTML page instead of our JSON - measured on this deployment, not guessed.
+   * The deployment is fine; the hop is flaky.
+   *
+   * So: reads retry, because reading twice costs nothing. Writes do NOT
+   * blindly retry, because when the hop fails the script has usually already
+   * run - a blind retry is how you get the same row twice. A failed write
+   * asks the sheet what it actually holds, and only sends again if the work
+   * genuinely is not there.
+   *
+   * No custom headers on any of this: a non-simple request turns that
+   * redirect into a CORS failure.
+   */
+  var HICCUP = 'google-hiccup';
+
+  async function readOnce(ms) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, ms);
+    try {
+      var r = await fetch(API, { signal: ctrl.signal, cache: 'no-store' });
+      var t = await r.text();
+      if (!r.ok || t.charAt(0) !== '{') throw new Error(HICCUP);
+      var d = JSON.parse(t);
+      if (!d || !Array.isArray(d.feedback)) throw new Error((d && d.error) || 'no answer');
+      return d;
+    } finally { clearTimeout(timer); }
+  }
+
+  // Backoff, not a tight loop. Measured on 2026-09-23: this endpoint had a
+  // spell of several minutes at roughly 90% failure and then returned to
+  // 15 clean reads out of 15. Retrying fast through a spell like that helps
+  // nobody; spacing the attempts rides out a short blip and gives up
+  // honestly on a real outage.
+  var BACKOFF = [0, 1500, 4000, 9000];
+
+  async function readFeedback() {
+    var last;
+    for (var i = 0; i < BACKOFF.length; i++) {
+      if (BACKOFF[i]) {
+        await new Promise(function (go) { setTimeout(go, BACKOFF[i]); });
+      }
+      try { return await readOnce(15000); }
+      catch (e) {
+        last = e;
+        if (String(e && e.name) === 'AbortError') throw e;
+      }
+    }
+    throw last;
+  }
+
+  function sendOnce(payload) {
+    return fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        if (!r.ok || t.charAt(0) !== '{') throw new Error(HICCUP);
+        var d = JSON.parse(t);
+        if (!d || !d.ok) throw new Error((d && d.error) || 'refused');
+        return d;
+      });
+    });
+  }
+
+  /**
+   * Send something to the sheet.
+   * `landed` is given the sheet's rows and answers whether the write is
+   * already there, so a lost answer never becomes a duplicate row.
+   */
+  async function write(payload, landed) {
+    try {
+      return await sendOnce(payload);
+    } catch (first) {
+      if (String(first && first.message) !== HICCUP) throw first;
+      var after;
+      try { after = await readFeedback(); }
+      catch (e) { throw first; }          // cannot tell - do not risk a second write
+      if (landed && landed(after.feedback)) {
+        items = after.feedback; loaded = true;
+        return { ok: true, recovered: true };
+      }
+      return await sendOnce(payload);     // genuinely absent, so send it again
+    }
+  }
+
   async function load() {
     try {
-      // No custom headers: Apps Script answers with a redirect to another
-      // Google host, and anything that makes this a non-simple request turns
-      // that redirect into a CORS failure. It returns JSON regardless.
-      // And never wait forever - a page stuck on "Loading" tells nobody anything.
-      var ctrl = new AbortController();
-      var timer = setTimeout(function () { ctrl.abort(); }, 20000);
-      var r;
-      try { r = await fetch(API, { signal: ctrl.signal }); }
-      finally { clearTimeout(timer); }
-      var d = await r.json();
-      if (!r.ok || !d || !Array.isArray(d.feedback)) {
-        throw new Error((d && d.error) || 'no answer');
-      }
+      var d = await readFeedback();
       items = d.feedback;
       loaded = true;
       var boot = document.getElementById('boot');
@@ -544,8 +623,10 @@
       var b = document.getElementById('boot');
       if (!b) return;   // the list was already showing; leave it alone
       b.textContent = (String(e && e.name) === 'AbortError')
-        ? 'The feedback sheet did not answer within 20 seconds. Reload to try again.'
-        : 'Could not read the feedback sheet: ' + String((e && e.message) || e).slice(0, 120);
+        ? 'The sheet did not answer in time. Reload the page to try again.'
+        : 'Could not reach the feedback sheet. This is Google\u2019s script service, '
+          + 'not your connection, and it usually clears within a few minutes - '
+          + 'reload the page to try again. Nothing already sent is lost.';
     }
   }
 
@@ -587,14 +668,16 @@
       setMyName(who);
       b.disabled = true; msg.textContent = files.length ? 'Sending, with attachments…' : 'Sending…';
       try {
-        var r = await fetch(API, {
-          method: 'POST',
-          headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
-          body: JSON.stringify({ action: 'reply', id: b.dataset.i, text: text, by: who || 'anonymous', files: files })
-        });
-        var d = await r.json();
-        if (!r.ok || !d.ok) throw new Error(d && d.error);
-        if (files.length && !(d.attachments && d.attachments.length)) {
+        var rid = b.dataset.i;
+        var d = await write(
+          { action: 'reply', id: rid, text: text, by: who || 'anonymous', files: files },
+          function (rows) {
+            var it = rows.filter(function (x) { return String(x.id) === rid; })[0];
+            return !!(it && (it.replies || []).some(function (rp) {
+              return String(rp && rp.text || '').trim() === text;
+            }));
+          });
+        if (files.length && !d.recovered && !(d.attachments && d.attachments.length)) {
           msg.textContent = 'Sent, but the attachment was not kept - the sheet script needs updating.';
         } else { msg.textContent = ''; }
         ta.value = '';
@@ -638,14 +721,14 @@
     }
     s.disabled = true; note.textContent = 'Saving…'; note.classList.remove('bad');
     try {
-      var r = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
-        body: JSON.stringify({ action: 'reply', id: s.dataset.i, status: s.value, by: myName() || 'anonymous' })
-      });
-      var d = await r.json();
-      if (!r.ok || !d.ok) throw new Error();
-      if (it) it.status = s.value;
+      var sid = s.dataset.i, want = s.value;
+      await write(
+        { action: 'reply', id: sid, status: want, by: myName() || 'anonymous' },
+        function (rows) {
+          var row = rows.filter(function (x) { return String(x.id) === sid; })[0];
+          return !!(row && String(row.status) === want);
+        });
+      if (it) it.status = want;
       note.textContent = 'Saved to the sheet';
       setTimeout(function () { if (note) note.textContent = ''; }, 3000);
     } catch (err) {
@@ -673,22 +756,22 @@
     setMyName(who);
     this.disabled = true; st.textContent = 'Sending…';
     try {
-      var r = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
-        body: JSON.stringify({
+      var d = await write(
+        {
           comment: comment,
           name: who || 'Anonymous',
           screen: document.getElementById('n-area').value,
           type: 'Feedback',
           role: 'team',
           files: pending['new'] || []
-        })
-      });
-      var d = await r.json();
-      if (!r.ok || !d.ok) throw new Error(d && d.error);
+        },
+        function (rows) {
+          return rows.some(function (x) {
+            return String(x.comment || '').trim() === comment.trim();
+          });
+        });
       var sent = (pending['new'] || []).length;
-      if (sent && !(d.attachments && d.attachments.length)) {
+      if (sent && !d.recovered && !(d.attachments && d.attachments.length)) {
         st.textContent = 'Sent, but the attachment was not kept - the sheet script needs updating.';
         await load();
         this.disabled = false;
