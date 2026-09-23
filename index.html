@@ -124,6 +124,23 @@
 
   .empty,.status-line{color:var(--muted); font-size:15px; margin-top:14px}
 
+  /* attachments */
+  .atts{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+  .att{display:block; border:1px solid var(--line); border-radius:8px; overflow:hidden; text-decoration:none}
+  .att-img{width:96px; height:72px; background:var(--sunk)}
+  .att-img img{width:100%; height:100%; object-fit:cover; display:block}
+  .att-file{padding:6px 11px; font-size:13px; color:var(--accent); background:var(--sunk)}
+  .pick{display:inline-block; cursor:pointer; font-size:13px; font-weight:500; color:var(--accent);
+    border:1px dashed var(--line); border-radius:7px; padding:7px 13px; background:var(--card)}
+  .pick:hover{border-color:var(--accent)}
+  .picked{display:inline-flex; gap:7px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--muted)}
+  .chip-file{display:inline-flex; gap:5px; align-items:center; background:var(--sunk);
+    border:1px solid var(--line); border-radius:999px; padding:3px 6px 3px 10px; max-width:180px}
+  .chip-file{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .hint{font-size:12px; color:var(--muted); margin-top:6px}
+  .saved{font-size:12px; color:var(--done)}
+  .saved.bad{color:var(--blocked, #9B2226)}
+
   /* the feedback button */
   .fab{position:fixed; right:max(16px,env(safe-area-inset-right,0px)); bottom:calc(18px + env(safe-area-inset-bottom,0px));
     z-index:20; font:inherit; font-weight:600; font-size:15px; cursor:pointer; background:var(--accent); color:var(--on-accent);
@@ -319,6 +336,14 @@
       </select></div>
     <div class="field"><label for="n-title">One-line summary</label><input id="n-title" type="text"></div>
     <div class="field"><label for="n-body">Detail</label><textarea id="n-body"></textarea></div>
+    <div class="field"><label>Screenshots or files</label>
+      <div class="composer-row">
+        <label class="pick"><input type="file" accept="image/*,.pdf,.txt,.log,.json,.csv" multiple
+          data-act="pick" data-key="new" hidden>Choose files</label>
+        <span class="picked" data-picked="new"></span>
+      </div>
+      <p class="hint">Up to four. Pictures are shrunk before sending, so a phone screenshot is fine.</p>
+    </div>
     <div class="status-line" id="n-status" role="status" aria-live="polite"></div>
     <div class="foot">
       <button class="ghost" value="cancel" type="submit">Cancel</button>
@@ -356,10 +381,72 @@
   function myName() { try { return localStorage.getItem('nms.fb.name') || ''; } catch (e) { return ''; } }
   function setMyName(v) { try { if (v) localStorage.setItem('nms.fb.name', v); } catch (e) {} }
 
+  /** Thumbnails for whatever was attached. Images show; anything else is a link. */
+  function attachHtml(list) {
+    if (!Array.isArray(list) || !list.length) return '';
+    return '<div class="atts">' + list.map(function (a) {
+      var isImg = /^image\//.test(a.type || '');
+      return isImg
+        ? '<a class="att att-img" href="' + esc(a.url) + '" target="_blank" rel="noopener" title="' + esc(a.name) + '">' +
+            '<img src="' + esc(a.url) + '" alt="' + esc(a.name) + '" loading="lazy"></a>'
+        : '<a class="att att-file" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.name) + '</a>';
+    }).join('') + '</div>';
+  }
+
   function replyHtml(r) {
     return '<div class="cmt reply">' +
       '<div class="cmt-meta"><strong>' + esc(r.by || 'Someone') + '</strong><span>' + esc(when(r.at)) + '</span></div>' +
-      '<div class="cmt-text">' + esc(r.text) + '</div></div>';
+      (r.text ? '<div class="cmt-text">' + esc(r.text) + '</div>' : '') +
+      attachHtml(r.attachments) + '</div>';
+  }
+
+  /**
+   * Shrink a picture before it leaves the browser. A phone screenshot is
+   * several megabytes; nobody needs that to read a bug report, and the store
+   * behind this page is a spreadsheet.
+   */
+  function prepFile(file) {
+    return new Promise(function (resolve) {
+      var MAX = 1600;
+      if (!/^image\//.test(file.type) || /svg/.test(file.type)) {
+        var fr = new FileReader();
+        fr.onload = function () { resolve({ name: file.name, type: file.type || 'application/octet-stream', data: fr.result }); };
+        fr.onerror = function () { resolve(null); };
+        fr.readAsDataURL(file);
+        return;
+      }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var s = Math.min(1, MAX / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve({ name: name, type: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82) });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  /** Files chosen but not yet sent, keyed by the box they were chosen in. */
+  var pending = {};
+
+  function pendingHtml(key) {
+    var list = pending[key] || [];
+    if (!list.length) return '';
+    return list.map(function (f, i) {
+      return '<span class="chip-file">' + esc(f.name) +
+        '<button class="link quiet" data-act="unpick" data-key="' + esc(key) + '" data-n="' + i + '" title="Remove">&times;</button></span>';
+    }).join('');
+  }
+
+  function pickerHtml(key, label) {
+    return '<label class="pick"><input type="file" accept="image/*,.pdf,.txt,.log,.json,.csv" multiple ' +
+      'data-act="pick" data-key="' + esc(key) + '" hidden>' + esc(label) + '</label>' +
+      '<span class="picked" data-picked="' + esc(key) + '">' + pendingHtml(key) + '</span>';
   }
 
   function threadHtml(it) {
@@ -381,6 +468,7 @@
         '<span class="tag ' + (CLS[status] || 't-open') + '">' + esc(area) + '</span>' +
         statusSel + '<span>' + esc(when(it.createdAt)) + '</span></div>' +
         '<div class="thread-body">' + esc(it.comment || '') + '</div>' +
+        attachHtml(it.attachments) +
       '</div>' +
       '<div class="actions">' +
         '<button class="link" data-act="toggle" data-i="' + esc(it.id) + '">' +
@@ -393,6 +481,7 @@
           '<div class="composer-row"><input class="who-input" type="text" placeholder="Your name" value="' +
             esc(myName()) + '" data-act="who"></div>' +
           '<textarea placeholder="Add a reply" data-act="text" aria-label="Reply"></textarea>' +
+          '<div class="composer-row">' + pickerHtml('r:' + it.id, 'Attach a screenshot') + '</div>' +
           '<div class="composer-row"><button class="go" data-act="send" data-i="' + esc(it.id) + '">Reply</button>' +
           '<span class="status-line" style="margin:0" data-act="msg"></span></div>' +
         '</div>' +
@@ -450,26 +539,39 @@
       return;
     }
 
+    if (b.dataset.act === 'unpick') {
+      var k = b.dataset.key, n = Number(b.dataset.n);
+      (pending[k] || []).splice(n, 1);
+      var host = document.querySelector('[data-picked="' + CSS.escape(k) + '"]');
+      if (host) host.innerHTML = pendingHtml(k);
+      return;
+    }
+
     if (b.dataset.act === 'send') {
       var box = b.closest('.comments');
       var who = box.querySelector('[data-act="who"]').value.trim();
       var ta = box.querySelector('[data-act="text"]');
       var msg = b.parentElement.querySelector('[data-act="msg"]');
       var text = ta.value.trim();
-      if (!text) { msg.textContent = 'Write something first.'; ta.focus(); return; }
+      var key = 'r:' + b.dataset.i;
+      var files = pending[key] || [];
+      if (!text && !files.length) { msg.textContent = 'Write something, or attach a file.'; ta.focus(); return; }
       setMyName(who);
-      b.disabled = true; msg.textContent = 'Sending…';
+      b.disabled = true; msg.textContent = files.length ? 'Sending, with attachments…' : 'Sending…';
       try {
         var r = await fetch(API, {
           method: 'POST',
           headers: { 'Content-Type': DIRECT ? 'text/plain;charset=utf-8' : 'application/json' },
-          body: JSON.stringify({ action: 'reply', id: b.dataset.i, text: text, by: who || 'anonymous' })
+          body: JSON.stringify({ action: 'reply', id: b.dataset.i, text: text, by: who || 'anonymous', files: files })
         });
         var d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d && d.error);
+        if (files.length && !(d.attachments && d.attachments.length)) {
+          msg.textContent = 'Sent, but the attachment was not kept - the sheet script needs updating.';
+        } else { msg.textContent = ''; }
         ta.value = '';
+        delete pending[key];
         openThreads[b.dataset.i] = true;
-        msg.textContent = '';
         await load();
       } catch (err) {
         msg.textContent = 'That did not send. Try again.';
@@ -479,10 +581,34 @@
     }
   });
 
+  /** A file chosen anywhere on the page - thread composer or the dialog. */
+  document.addEventListener('change', async function (e) {
+    var inp = e.target.closest('input[data-act="pick"]'); if (!inp) return;
+    var key = inp.dataset.key;
+    var host = document.querySelector('[data-picked="' + CSS.escape(key) + '"]');
+    if (host) host.textContent = 'Preparing…';
+    var out = [];
+    for (var i = 0; i < inp.files.length && out.length < 4; i++) {
+      var f = await prepFile(inp.files[i]);
+      if (f) out.push(f);
+    }
+    pending[key] = (pending[key] || []).concat(out).slice(0, 4);
+    inp.value = '';
+    host = document.querySelector('[data-picked="' + CSS.escape(key) + '"]');
+    if (host) host.innerHTML = pendingHtml(key);
+  });
+
   threadsEl.addEventListener('change', async function (e) {
     var s = e.target.closest('select[data-act="status"]'); if (!s) return;
-    var prev = s.dataset.prev || '';
-    s.disabled = true;
+    var it = items.filter(function (x) { return String(x.id) === s.dataset.i; })[0];
+    var prev = it ? (it.status || 'New') : '';
+    var note = s.parentElement.querySelector('.saved');
+    if (!note) {
+      note = document.createElement('span');
+      note.className = 'saved';
+      s.parentElement.insertBefore(note, s.nextSibling);
+    }
+    s.disabled = true; note.textContent = 'Saving…'; note.classList.remove('bad');
     try {
       var r = await fetch(API, {
         method: 'POST',
@@ -491,10 +617,13 @@
       });
       var d = await r.json();
       if (!r.ok || !d.ok) throw new Error();
-      var it = items.filter(function (x) { return String(x.id) === s.dataset.i; })[0];
       if (it) it.status = s.value;
+      note.textContent = 'Saved to the sheet';
+      setTimeout(function () { if (note) note.textContent = ''; }, 3000);
     } catch (err) {
       if (prev) s.value = prev;
+      note.textContent = 'Not saved - try again';
+      note.classList.add('bad');
     }
     s.disabled = false;
   });
@@ -524,13 +653,24 @@
           name: who || 'Anonymous',
           screen: document.getElementById('n-area').value,
           type: 'Feedback',
-          role: 'team'
+          role: 'team',
+          files: pending['new'] || []
         })
       });
       var d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d && d.error);
+      var sent = (pending['new'] || []).length;
+      if (sent && !(d.attachments && d.attachments.length)) {
+        st.textContent = 'Sent, but the attachment was not kept - the sheet script needs updating.';
+        await load();
+        this.disabled = false;
+        return;
+      }
       document.getElementById('n-title').value = '';
       document.getElementById('n-body').value = '';
+      delete pending['new'];
+      var pk = document.querySelector('[data-picked="new"]');
+      if (pk) pk.innerHTML = '';
       st.textContent = '';
       dlg.close();
       await load();
