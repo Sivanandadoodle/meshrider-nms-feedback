@@ -75,6 +75,15 @@ function saveFiles_(files) {
 }
 
 function doGet(e) {
+  // ?info=1 answers with which Sheet this is and which version is deployed.
+  // Nobody can find their way back from an /exec address otherwise, and it
+  // costs one line to make that never be a problem again.
+  if (e && e.parameter && e.parameter.info) {
+    var ss0 = SpreadsheetApp.getActiveSpreadsheet();
+    return json_({ version: 3, sheetName: ss0.getName(), sheetUrl: ss0.getUrl(),
+                   attachmentsFolder: FOLDER_NAME });
+  }
+
   var sh = sheet_(), last = sh.getLastRow(), out = [];
   if (last >= 2) {
     var vals = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
