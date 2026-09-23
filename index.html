@@ -504,7 +504,15 @@
 
   async function load() {
     try {
-      var r = await fetch(API, { headers: { 'Accept': 'application/json' } });
+      // No custom headers: Apps Script answers with a redirect to another
+      // Google host, and anything that makes this a non-simple request turns
+      // that redirect into a CORS failure. It returns JSON regardless.
+      // And never wait forever - a page stuck on "Loading" tells nobody anything.
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 20000);
+      var r;
+      try { r = await fetch(API, { signal: ctrl.signal }); }
+      finally { clearTimeout(timer); }
       var d = await r.json();
       if (!r.ok || !d || !Array.isArray(d.feedback)) {
         throw new Error((d && d.error) || 'no answer');
@@ -516,8 +524,10 @@
       render();
     } catch (e) {
       var b = document.getElementById('boot');
-      if (b) b.textContent = 'Could not reach the feedback store. ' +
-        'If this has just been deployed, the feedback address has not been set yet - see config.js.';
+      if (!b) return;   // the list was already showing; leave it alone
+      b.textContent = (String(e && e.name) === 'AbortError')
+        ? 'The feedback sheet did not answer within 20 seconds. Reload to try again.'
+        : 'Could not read the feedback sheet: ' + String((e && e.message) || e).slice(0, 120);
     }
   }
 
