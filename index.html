@@ -515,17 +515,9 @@
     });
 
     countEl.textContent = vis.length + ' of ' + (showOlder ? live.length : live.length - olderCount);
-    threadsEl.innerHTML = (vis.length
+    threadsEl.innerHTML = vis.length
       ? vis.map(threadHtml).join('')
-      : '<p class="empty">Nothing with that status.</p>')
-      + (olderCount
-        ? '<p class="older-line">' + olderCount + ' earlier item' + (olderCount === 1 ? '' : 's') +
-          ' from the demo, up to 13 August. ' +
-          '<button class="link" id="toggle-older">' + (showOlder ? 'Hide them' : 'Show them') + '</button></p>'
-        : '');
-
-    var t = document.getElementById('toggle-older');
-    if (t) t.addEventListener('click', function () { showOlder = !showOlder; render(); });
+      : '<p class="empty">Nothing with that status.</p>';
   }
 
   async function load() {
